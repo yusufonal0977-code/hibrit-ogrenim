@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Münazara Sözlüğü</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .ph { display:grid; gap:12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .ph li { margin: 4px 0; }
+  .ph .en { color: var(--muted); font-style: italic; }
+  #q { width: 100%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Debate Glossary">Münazara Sözlüğü</h1>
+  <p class="lead" data-en="Station 8. Prepared to be studied with foreign language teachers before the debate. Search the terms; print it and hand it to the teams.">Etkinlik 8. Münazaradan önce yabancı dil öğretmenleriyle birlikte çalışılmak üzere hazırlandı. Terimleri arayabilir, yazdırıp ekiplere dağıtabilirsin.</p>
+
+  <div class="row noprint" style="margin-bottom:14px">
+    <input type="text" id="q" placeholder="Ara / Search">
+  </div>
+
+  <h2 data-en="Terms">Terimler</h2>
+  <div class="card table-wrap">
+    <table><thead><tr><th>Türkçe</th><th>English</th><th data-en="Meaning (TR)">Anlamı</th></tr></thead><tbody id="terms"></tbody></table>
+  </div>
+
+  <h2 data-en="Debate phrases">Münazara kalıp ifadeleri</h2>
+  <div class="ph" id="phrases"></div>
+
+  <div class="row noprint" style="margin-top:16px"><button class="btn" onclick="print()" data-en="Print">Yazdır</button></div>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/glossary.js"></script>
+<script>
+HO.header('../');
+const $ = s => document.querySelector(s);
+function render() {
+  const q = $('#q').value.trim().toLocaleLowerCase('tr');
+  const hit = t => !q || t.join(' ').toLocaleLowerCase('tr').includes(q);
+  const rows = TERMS.filter(hit);
+  $('#terms').innerHTML = rows.length ? rows.map(t => '<tr><td><b>' + HO.esc(t[0]) + '</b></td><td>' + HO.esc(t[1]) + '</td><td class="muted small">' + HO.esc(t[2]) + '</td></tr>').join('')
+    : '<tr><td colspan="3" class="muted">' + HO.t('Sonuç yok.', 'No results.') + '</td></tr>';
+  $('#phrases').innerHTML = PHRASES.map(g => {
+    const items = g[2].filter(hit);
+    return items.length ? '<div class="card"><h3>' + HO.esc(HO.t(g[0], g[1])) + '</h3><ul>' + items.map(p => '<li>' + HO.esc(p[0]) + '<br><span class="en">' + HO.esc(p[1]) + '</span></li>').join('') + '</ul></div>' : '';
+  }).join('');
+}
+$('#q').addEventListener('input', render);
+document.addEventListener('langchange', render);
+HO.applyStatic(); render();
+</script>
+</body>
+</html>

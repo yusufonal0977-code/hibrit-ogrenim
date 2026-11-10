@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>İnsan mı, Makine mi?</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Human or Machine?">İnsan mı, Makine mi?</h1>
+  <p class="lead" data-en="Station 3. For each error card, enter the step where the error starts and the misconception code, first as decided by the students, then as given by the AI tool. The page computes how often they agree.">Etkinlik 3. Her hata kartı için hatanın başladığı adımı ve kavram yanılgısı kodunu gir: önce öğrencilerin kararını, sonra YZ aracının verdiği cevabı. Sayfa, ikisinin ne sıklıkla uyuştuğunu hesaplar.</p>
+
+  <div class="card table-wrap">
+    <table>
+      <thead>
+        <tr><th data-en="Card">Kart</th><th data-en="Students: step">Öğrenci: adım</th><th data-en="Students: code">Öğrenci: kod</th><th data-en="AI: step">YZ: adım</th><th data-en="AI: code">YZ: kod</th><th></th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="row noprint" style="margin-top:12px">
+      <button class="btn ghost" id="add" data-en="Add card">Kart ekle</button>
+      <button class="btn ghost" id="reset" data-en="Clear all">Tümünü temizle</button>
+    </div>
+  </div>
+
+  <h2 data-en="Results">Sonuçlar</h2>
+  <div class="stats" id="stats"></div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 data-en="Cards where they disagree">Uyuşmayan kartlar</h3>
+    <p class="muted small" data-en="Discuss each one: why did the AI disagree? Pick the most likely reason.">Her birini tartışın: YZ neden farklı karar verdi? En olası nedeni seçin.</p>
+    <div id="mism"></div>
+  </div>
+
+  <div class="card">
+    <h3 data-en="Can we trust the AI? / Must the teacher check?">YZ'ye güvenebilir miyiz? / Öğretmen bakmalı mı?</h3>
+    <div id="verdict"></div>
+  </div>
+
+  <div class="row noprint">
+    <button class="btn" id="csv" data-en="Download CSV">CSV indir</button>
+    <button class="btn ghost" onclick="print()" data-en="Print">Yazdır</button>
+  </div>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/data.js"></script>
+<script>
+HO.header('../');
+const $ = s => document.querySelector(s);
+const blank = n => ({ card: n, hs: '', hc: '', as: '', ac: '', why: '' });
+let R = HO.store.get('ho-label', null) || Array.from({ length: 10 }, (_, i) => blank(i + 1));
+const save = () => HO.store.set('ho-label', R);
+const CODES = MISC.map(m => m.code).concat(['?']);
+const REASONS = [
+  ['hand', 'El yazısı okunamadı', 'Handwriting not readable'],
+  ['ctx', 'Bağlam / önceki adım kaçırıldı', 'Context or earlier step missed'],
+  ['list', 'Listede uygun kod yok', 'No suitable code in the list'],
+  ['human', 'Aslında öğrenciler yanılmış', 'Actually the students were wrong'],
+  ['other', 'Diğer', 'Other']
+];
+
+function sel(val, field, i) {
+  return '<select data-i="' + i + '" data-f="' + field + '"><option value="">–</option>' +
+    CODES.map(c => '<option' + (c === val ? ' selected' : '') + ' value="' + c + '">' + (c === '?' ? HO.t('Belirsiz', 'Unsure') : c) + '</option>').join('') + '</select>';
+}
+function num(val, field, i) {
+  return '<input type="number" min="1" max="9" style="width:70px" data-i="' + i + '" data-f="' + field + '" value="' + HO.esc(val) + '">';
+}
+function renderRows() {
+  $('#rows').innerHTML = R.map((r, i) =>
+    '<tr><td><b>' + r.card + '</b></td><td>' + num(r.hs, 'hs', i) + '</td><td>' + sel(r.hc, 'hc', i) + '</td><td>' + num(r.as, 'as', i) + '</td><td>' + sel(r.ac, 'ac', i) +
+    '</td><td class="noprint"><button class="btn ghost" data-del="' + i + '" aria-label="sil">×</button></td></tr>').join('');
+  $('#rows').querySelectorAll('select,input').forEach(el => el.addEventListener('change', () => {
+    R[+el.dataset.i][el.dataset.f] = el.value; save(); renderResults();
+  }));
+  $('#rows').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { R.splice(+b.dataset.del, 1); save(); renderAll(); }));
+}
+function kappa(pairs) {
+  const n = pairs.length; if (!n) return null;
+  const cats = [...new Set(pairs.flat())];
+  const po = pairs.filter(p => p[0] === p[1]).length / n;
+  let pe = 0;
+  cats.forEach(c => { pe += (pairs.filter(p => p[0] === c).length / n) * (pairs.filter(p => p[1] === c).length / n); });
+  return pe === 1 ? 1 : (po - pe) / (1 - pe);
+}
+function renderResults() {
+  const done = R.filter(r => r.hc && r.ac);
+  const codeAgree = done.filter(r => r.hc === r.ac).length;
+  const stepDone = R.filter(r => r.hs && r.as);
+  const stepAgree = stepDone.filter(r => r.hs === r.as).length;
+  const k = kappa(done.map(r => [r.hc, r.ac]));
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '–';
+  $('#stats').innerHTML =
+    '<div class="card"><div class="stat">' + pct(codeAgree, done.length) + '</div><div class="muted small">' + HO.t('Kod uyumu', 'Code agreement') + ' (' + codeAgree + '/' + done.length + ')</div></div>' +
+    '<div class="card"><div class="stat">' + pct(stepAgree, stepDone.length) + '</div><div class="muted small">' + HO.t('Adım uyumu', 'Step agreement') + ' (' + stepAgree + '/' + stepDone.length + ')</div></div>' +
+    '<div class="card"><div class="stat">' + (k === null ? '–' : k.toFixed(2)) + '</div><div class="muted small">Cohen kappa ' + HO.t('(şans etkisi çıkarılmış uyum)', '(agreement beyond chance)') + '</div></div>';
+  const mism = R.map((r, i) => [r, i]).filter(([r]) => (r.hc && r.ac && r.hc !== r.ac) || (r.hs && r.as && r.hs !== r.as));
+  $('#mism').innerHTML = mism.length ? mism.map(([r, i]) =>
+    '<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><b>' + HO.t('Kart ', 'Card ') + r.card + '</b>' +
+    '<span class="pill-ok">' + HO.t('Öğrenci', 'Students') + ': ' + (r.hs || '–') + ' / ' + (r.hc || '–') + '</span>' +
+    '<span class="pill-bad">' + HO.t('YZ', 'AI') + ': ' + (r.as || '–') + ' / ' + (r.ac || '–') + '</span>' +
+    '<select data-why="' + i + '"><option value="">' + HO.t('Neden?', 'Why?') + '</option>' +
+    REASONS.map(x => '<option value="' + x[0] + '"' + (r.why === x[0] ? ' selected' : '') + '>' + HO.t(x[1], x[2]) + '</option>').join('') + '</select></div>').join('')
+    : '<p class="muted">' + HO.t('Henüz uyuşmayan kart yok.', 'No disagreements yet.') + '</p>';
+  $('#mism').querySelectorAll('[data-why]').forEach(s => s.addEventListener('change', () => { R[+s.dataset.why].why = s.value; save(); renderResults(); }));
+  const unsure = R.filter(r => r.ac === '?').length;
+  let v;
+  if (!done.length) v = HO.t('Sonuç için en az bir kartın iki kodunu da girin.', 'Enter both codes for at least one card.');
+  else if (k !== null && k >= 0.8) v = '<span class="pill-ok">' + HO.t('Yüksek uyum', 'High agreement') + '</span> ' + HO.t('YZ bu kartlarda güvenilir görünüyor, ancak öğretmen yine de belirsiz ve uyuşmayan kartlara bakmalı.', 'The AI looks reliable on these cards, but the teacher should still check unsure and mismatched cards.');
+  else if (k !== null && k >= 0.6) v = '<span class="pill-warn">' + HO.t('Orta uyum', 'Moderate agreement') + '</span> ' + HO.t('YZ önerisi yardımcı olur, ama her raporun öğretmen tarafından kontrol edilmesi şart.', 'The AI suggestion helps, but every report must be checked by the teacher.');
+  else v = '<span class="pill-bad">' + HO.t('Düşük uyum', 'Low agreement') + '</span> ' + HO.t('YZ bu görevde tek başına kullanılamaz. Öğretmen onayı vazgeçilmez.', 'The AI cannot be used alone for this task. Teacher approval is essential.');
+  const reasons = REASONS.map(x => [x, R.filter(r => r.why === x[0]).length]).filter(x => x[1]);
+  $('#verdict').innerHTML = '<p>' + v + '</p>' + (unsure ? '<p class="small muted">' + HO.t('YZ ' + unsure + ' kartta emin olmadığını belirtti.', 'The AI marked ' + unsure + ' card(s) as unsure.') + '</p>' : '') +
+    (reasons.length ? '<p class="small">' + HO.t('Uyuşmazlık nedenleri: ', 'Reasons for disagreement: ') + reasons.map(([x, n]) => HO.t(x[1], x[2]) + ' (' + n + ')').join(', ') + '</p>' : '');
+}
+function renderAll() { renderRows(); renderResults(); }
+$('#add').addEventListener('click', () => { R.push(blank((R.reduce((m, r) => Math.max(m, r.card), 0)) + 1)); save(); renderAll(); });
+$('#reset').addEventListener('click', () => { if (confirm(HO.t('Tüm girişler silinsin mi?', 'Delete all entries?'))) { R = Array.from({ length: 10 }, (_, i) => blank(i + 1)); save(); renderAll(); } });
+$('#csv').addEventListener('click', () => {
+  const rows = [['kart', 'ogrenci_adim', 'ogrenci_kod', 'yz_adim', 'yz_kod', 'uyum', 'neden']].concat(
+    R.map(r => [r.card, r.hs, r.hc, r.as, r.ac, r.hc && r.ac ? (r.hc === r.ac ? 'evet' : 'hayir') : '', r.why]));
+  HO.download('insan-makine.csv', '﻿' + rows.map(r => r.join(',')).join('\n'), 'text/csv;charset=utf-8');
+});
+document.addEventListener('langchange', renderAll);
+HO.applyStatic(); renderAll();
+</script>
+</body>
+</html>

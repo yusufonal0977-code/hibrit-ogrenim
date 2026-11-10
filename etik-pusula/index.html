@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etik Pusula</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .cases { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .cases button { text-align:left; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; cursor:pointer; font:inherit; font-size:14px; }
+  .cases button.done { border-color: var(--ok); }
+  .cases button b { display:block; color:var(--accent); }
+  .compass { display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin:14px 0; }
+  .compass div { background:var(--accent-soft); color:var(--accent); border-radius:8px; padding:10px; font-weight:600; text-align:center; }
+  .counter input { width:100%; }
+  .win { background: var(--ok-soft); border-radius: 8px; padding: 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Ethics Compass">Etik Pusula</h1>
+  <p class="lead" data-en="Station 10. Pick a case and project it. Groups evaluate it with the four compass questions and propose a solution. Write the proposals below and count the raised hands.">Etkinlik 10. Bir vaka seç ve yansıt. Gruplar vakayı pusulanın dört sorusuyla değerlendirip bir çözüm önerir. Önerileri aşağıya yaz ve kalkan elleri say.</p>
+
+  <section id="pick">
+    <div class="cases" id="cases"></div>
+    <h2 data-en="Decisions so far">Alınan kararlar</h2>
+    <div class="card" id="decisions"></div>
+    <div class="row noprint">
+      <button class="btn" id="csv" data-en="Download CSV">CSV indir</button>
+      <button class="btn ghost" onclick="print()" data-en="Print">Yazdır</button>
+      <button class="btn ghost" id="clear" data-en="Clear decisions">Kararları temizle</button>
+    </div>
+  </section>
+
+  <section id="case" hidden>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><span class="tag" id="cno"></span><button class="btn ghost" id="back" data-en="All cases">Tüm vakalar</button></div>
+      <p class="big" id="ctext"></p>
+      <div class="compass" id="compass"></div>
+    </div>
+    <div class="card">
+      <h3 data-en="Group proposals and votes">Grup önerileri ve oylar</h3>
+      <div id="props"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" id="addp" data-en="Add proposal">Öneri ekle</button>
+        <button class="btn" id="saveD" data-en="Save decision">Kararı kaydet</button>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/cases.js"></script>
+<script>
+HO.header('../');
+const $ = s => document.querySelector(s);
+let D = HO.store.get('ho-ethics', {});   // { caseIndex: { props:[{t,v}], winner } }
+let cur = null;
+const save = () => HO.store.set('ho-ethics', D);
+
+function renderPick() {
+  $('#cases').innerHTML = CASES.map((c, i) => '<button data-i="' + i + '" class="' + (D[i] && D[i].winner != null ? 'done' : '') + '"><b>' +
+    HO.t('Vaka ', 'Case ') + (i + 1) + '</b>' + HO.esc(HO.L(c).slice(0, 70)) + '…</button>').join('');
+  $('#cases').querySelectorAll('button').forEach(b => b.addEventListener('click', () => openCase(+b.dataset.i)));
+  const done = Object.keys(D).filter(k => D[k].winner != null).sort((a, b) => a - b);
+  $('#decisions').innerHTML = done.length ? '<ol>' + done.map(k => '<li value="' + (+k + 1) + '"><b>' + HO.t('Vaka ', 'Case ') + (+k + 1) + ':</b> ' +
+    HO.esc(D[k].props[D[k].winner].t) + ' <span class="muted small">(' + D[k].props[D[k].winner].v + HO.t(' oy', ' votes') + ')</span></li>').join('') + '</ol>'
+    : '<p class="muted">' + HO.t('Henüz karar kaydedilmedi.', 'No decisions saved yet.') + '</p>';
+}
+function openCase(i) {
+  cur = i; if (!D[i]) D[i] = { props: [{ t: '', v: 0 }, { t: '', v: 0 }], winner: null };
+  $('#pick').hidden = true; $('#case').hidden = false; renderCase(); scrollTo(0, 0);
+}
+function renderCase() {
+  const d = D[cur]; const max = Math.max(...d.props.map(p => p.v));
+  $('#cno').textContent = HO.t('Vaka ', 'Case ') + (cur + 1) + ' / ' + CASES.length;
+  $('#ctext').textContent = HO.L(CASES[cur]);
+  $('#compass').innerHTML = COMPASS.map(c => '<div>' + HO.esc(HO.L(c)) + '</div>').join('');
+  $('#props').innerHTML = d.props.map((p, k) =>
+    '<div class="counter' + (max > 0 && p.v === max ? ' win' : '') + '"><input type="text" data-k="' + k + '" value="' + HO.esc(p.t) + '" placeholder="' + HO.t('Grup ', 'Group ') + (k + 1) + HO.t(' önerisi', ' proposal') + '">' +
+    '<button class="btn ghost" data-k="' + k + '" data-d="-1">−</button><span class="n">' + p.v + '</span><button class="btn" data-k="' + k + '" data-d="1">+</button></div>').join('');
+  $('#props').querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { d.props[+inp.dataset.k].t = inp.value; save(); }));
+  $('#props').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const p = d.props[+b.dataset.k]; p.v = Math.max(0, p.v + (+b.dataset.d)); save(); renderCase(); }));
+  $('#addp').disabled = d.props.length >= 6;
+}
+$('#addp').addEventListener('click', () => { D[cur].props.push({ t: '', v: 0 }); save(); renderCase(); });
+$('#saveD').addEventListener('click', () => {
+  const d = D[cur]; const valid = d.props.map((p, k) => [p, k]).filter(([p]) => p.t.trim());
+  if (!valid.length) { alert(HO.t('En az bir öneri yazın.', 'Write at least one proposal.')); return; }
+  d.winner = valid.sort((a, b) => b[0].v - a[0].v)[0][1]; save(); back();
+});
+function back() { cur = null; $('#case').hidden = true; $('#pick').hidden = false; renderPick(); }
+$('#back').addEventListener('click', back);
+$('#clear').addEventListener('click', () => { if (confirm(HO.t('Tüm kararlar silinsin mi?', 'Delete all decisions?'))) { D = {}; save(); renderPick(); } });
+$('#csv').addEventListener('click', () => {
+  const rows = [['vaka', 'oneri', 'oy', 'secilen']];
+  Object.keys(D).forEach(k => D[k].props.forEach((p, j) => p.t.trim() && rows.push([+k + 1, p.t, p.v, D[k].winner === j ? 'evet' : ''])));
+  HO.download('etik-pusula.csv', '﻿' + rows.map(r => r.map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv;charset=utf-8');
+});
+document.addEventListener('langchange', () => (cur === null ? renderPick() : renderCase()));
+HO.applyStatic(); renderPick();
+</script>
+</body>
+</html>

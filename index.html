@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hibrit Öğrenim Araçları</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Hybrid Learning: Digital Tools">Hibrit Öğrenim: Dijital Araçlar</h1>
+  <p class="lead" data-en="Digital materials for the activity stations of the AI-Assisted Hybrid Learning Loop project. Every tool runs in the browser; no data is sent to any server.">YZ Destekli Hibrit Öğrenme Döngüsü projesinin etkinlik istasyonları için dijital materyaller. Tüm araçlar tarayıcıda çalışır, hiçbir veri sunucuya gönderilmez.</p>
+
+  <div class="grid">
+    <a class="card tool" href="cikis-bileti/">
+      <span class="tag" data-en="Station 9">Etkinlik 9</span>
+      <h3 data-en="Exit Ticket">Çıkış Bileti</h3>
+      <p class="muted small" data-en="Starter prototype for the hackathon. Show a question, count answers with A/B/C/D cards and get the class error profile.">Hackathon için başlangıç prototipi. Soruyu göster, A/B/C/D kartlarıyla verilen cevapları say, sınıfın hata profilini gör.</p>
+    </a>
+    <a class="card tool" href="etiket-karsilastirma/">
+      <span class="tag" data-en="Station 3">Etkinlik 3</span>
+      <h3 data-en="Human or Machine?">İnsan mı, Makine mi?</h3>
+      <p class="muted small" data-en="Enter student and AI labels for the error cards; see agreement rate, kappa and mismatches.">Hata kartları için öğrenci ve YZ etiketlerini gir; uyum oranını, kappa değerini ve uyuşmayan kartları gör.</p>
+    </a>
+    <a class="card tool" href="atlas/">
+      <span class="tag" data-en="Station 4">Etkinlik 4</span>
+      <h3 data-en="Misconception Atlas">Kavram Yanılgısı Atlası</h3>
+      <p class="muted small" data-en="Compare the misconception rates of schools and countries on the same 5-question test.">Aynı 5 soruluk testte okulların ve ülkelerin kavram yanılgısı oranlarını karşılaştır.</p>
+    </a>
+    <a class="card tool" href="etik-pusula/">
+      <span class="tag" data-en="Station 10">Etkinlik 10</span>
+      <h3 data-en="Ethics Compass">Etik Pusula</h3>
+      <p class="muted small" data-en="Project the 12 case cards, collect group proposals and vote.">12 vaka kartını yansıt, grupların çözüm önerilerini topla ve oyla.</p>
+    </a>
+    <a class="card tool" href="sozluk/">
+      <span class="tag" data-en="Station 8">Etkinlik 8</span>
+      <h3 data-en="Debate Glossary">Münazara Sözlüğü</h3>
+      <p class="muted small" data-en="Turkish–English AI and education terms plus debate phrases. Searchable and printable.">Türkçe–İngilizce YZ ve eğitim terimleri ile münazara kalıp ifadeleri. Aranabilir ve yazdırılabilir.</p>
+    </a>
+  </div>
+
+  <h2 data-en="Misconception list (pilot topic)">Kavram Yanılgısı Listesi (pilot konu)</h2>
+  <div class="card table-wrap">
+    <table id="misc"><thead><tr><th data-en="Code">Kod</th><th data-en="Misconception">Yanılgı</th><th data-en="Example">Örnek</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="note" data-en="<b>Privacy:</b> The tools store data only in this browser (localStorage). Do not enter student names; use codes such as S01, S02.">
+    <b>Gizlilik:</b> Araçlar verileri yalnızca bu tarayıcıda (localStorage) saklar. Öğrenci adı girmeyin; S01, S02 gibi kodlar kullanın.
+  </div>
+
+  <footer data-en="Hybrid Learning project. Materials are shared under CC BY 4.0.">Hibrit Öğrenim projesi. Materyaller CC BY 4.0 lisansıyla paylaşılmaktadır.</footer>
+</div>
+<script src="assets/common.js"></script>
+<script src="assets/data.js"></script>
+<script>
+  HO.header('./');
+  function render() {
+    document.querySelector('#misc tbody').innerHTML = MISC.map(m =>
+      '<tr><td><b>' + m.code + '</b></td><td>' + HO.esc(HO.L(m)) + '</td><td><code>' + HO.esc(m.ex) + '</code></td></tr>').join('');
+  }
+  render(); HO.applyStatic();
+  document.addEventListener('langchange', render);
+</script>
+</body>
+</html>

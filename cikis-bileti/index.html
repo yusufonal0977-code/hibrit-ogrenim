@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Çıkış Bileti</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Exit Ticket">Çıkış Bileti</h1>
+  <p class="lead" data-en="Starter prototype for Station 9. Pick 2 questions, project them on the board, students hold up their A/B/C/D cards and you enter the counts. Every wrong option is linked to a misconception, so the result is the class error profile.">Etkinlik 9 için başlangıç prototipi. 2 soru seç ve tahtaya yansıt. Öğrenciler A/B/C/D kartlarını kaldırır, sen sayıları girersin. Her yanlış seçenek bir kavram yanılgısına bağlı olduğu için sonuç, sınıfın hata profilidir.</p>
+
+  <section id="setup" class="card">
+    <h2 style="margin-top:0" data-en="1. Choose questions">1. Soruları seç</h2>
+    <div id="qlist"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="start" data-en="Start">Başlat</button>
+      <span class="muted small" id="selinfo"></span>
+    </div>
+  </section>
+
+  <section id="run" class="card" hidden>
+    <div class="row" style="justify-content:space-between">
+      <span class="tag" id="qno"></span>
+      <button class="btn ghost noprint" id="restart" data-en="Back to selection">Seçime dön</button>
+    </div>
+    <p class="big" id="qtext"></p>
+    <div id="counters"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost" id="prev" data-en="Previous">Önceki</button>
+      <button class="btn" id="next" data-en="Next">Sonraki</button>
+    </div>
+  </section>
+
+  <section id="report" hidden>
+    <h2 data-en="Class error profile">Sınıf hata profili</h2>
+    <div class="stats" id="stats"></div>
+    <div class="card" style="margin-top:14px">
+      <h3 data-en="Misconceptions (share of all answers)">Kavram yanılgıları (tüm cevaplara oranı)</h3>
+      <div id="bars"></div>
+    </div>
+    <div class="card">
+      <h3 data-en="Suggested groups for the next lesson">Bir sonraki ders için grup önerisi</h3>
+      <div id="groups"></div>
+      <p class="muted small" data-en="This is a suggestion. The teacher reviews and approves the groups.">Bu bir öneridir. Grupları öğretmen inceler ve onaylar.</p>
+    </div>
+    <div class="row noprint">
+      <button class="btn" id="csv" data-en="Download CSV">CSV indir</button>
+      <button class="btn ghost" onclick="print()" data-en="Print">Yazdır</button>
+    </div>
+  </section>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/data.js"></script>
+<script>
+HO.header('../');
+const S = HO.store.get('ho-exit', { sel: [1, 10], counts: {}, i: 0, mode: 'setup' });
+const LET = ['A', 'B', 'C', 'D'];
+const $ = s => document.querySelector(s);
+const save = () => HO.store.set('ho-exit', S);
+const misc = c => MISC.find(m => m.code === c);
+
+function renderSetup() {
+  $('#qlist').innerHTML = QUESTIONS.map(q =>
+    '<label class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><input type="checkbox" value="' + q.id + '"' +
+    (S.sel.includes(q.id) ? ' checked' : '') + '> <b>' + q.id + '.</b> ' + HO.esc(q.q) + '</label>').join('');
+  $('#qlist').querySelectorAll('input').forEach(cb => cb.addEventListener('change', () => {
+    S.sel = [...$('#qlist').querySelectorAll('input:checked')].map(x => +x.value); save(); info();
+  }));
+  info();
+}
+function info() {
+  $('#selinfo').textContent = HO.t(S.sel.length + ' soru seçildi (önerilen: 2)', S.sel.length + ' selected (recommended: 2)');
+  $('#start').disabled = S.sel.length === 0;
+}
+function cur() { return QUESTIONS.find(q => q.id === S.sel[S.i]); }
+function renderRun() {
+  const q = cur(); const c = S.counts[q.id] || (S.counts[q.id] = [0, 0, 0, 0]);
+  $('#qno').textContent = HO.t('Soru ', 'Question ') + (S.i + 1) + ' / ' + S.sel.length;
+  $('#qtext').textContent = q.q;
+  $('#counters').innerHTML = q.opts.map((o, k) =>
+    '<div class="counter"><div><b>' + LET[k] + ')</b> ' + HO.esc(o[0]) + '</div>' +
+    '<button class="btn ghost" data-k="' + k + '" data-d="-1" aria-label="-">−</button>' +
+    '<span class="n">' + c[k] + '</span>' +
+    '<button class="btn" data-k="' + k + '" data-d="1" aria-label="+">+</button></div>').join('');
+  $('#counters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const k = +b.dataset.k; c[k] = Math.max(0, c[k] + (+b.dataset.d)); save(); renderRun();
+  }));
+  $('#prev').disabled = S.i === 0;
+  $('#next').textContent = S.i === S.sel.length - 1 ? HO.t('Raporu göster', 'Show report') : HO.t('Sonraki', 'Next');
+}
+function renderReport() {
+  let total = 0, correct = 0; const byCode = {};
+  S.sel.forEach(id => {
+    const q = QUESTIONS.find(x => x.id === id); const c = S.counts[id] || [0, 0, 0, 0];
+    q.opts.forEach((o, k) => { total += c[k]; if (o[1] === null) correct += c[k]; else byCode[o[1]] = (byCode[o[1]] || 0) + c[k]; });
+  });
+  const pct = n => total ? Math.round(100 * n / total) : 0;
+  const perQ = S.sel.length ? Math.round(total / S.sel.length) : 0;
+  $('#stats').innerHTML =
+    '<div class="card"><div class="stat">' + pct(correct) + '%</div><div class="muted small">' + HO.t('Doğru cevap oranı', 'Correct answers') + '</div></div>' +
+    '<div class="card"><div class="stat">' + perQ + '</div><div class="muted small">' + HO.t('Soru başına cevap', 'Answers per question') + '</div></div>' +
+    '<div class="card"><div class="stat">' + Object.keys(byCode).filter(k => byCode[k]).length + '</div><div class="muted small">' + HO.t('Görülen yanılgı türü', 'Misconception types seen') + '</div></div>';
+  const codes = Object.keys(byCode).filter(k => byCode[k]).sort((a, b) => byCode[b] - byCode[a]);
+  $('#bars').innerHTML = codes.length ? codes.map(k =>
+    '<div class="barrow"><span><b>' + k + '</b> ' + HO.esc(HO.L(misc(k))) + '</span><div class="bar bad" style="width:' + pct(byCode[k]) + '%"></div><span>' + pct(byCode[k]) + '%</span></div>').join('')
+    : '<p class="muted">' + HO.t('Yanlış cevap girilmedi.', 'No wrong answers entered.') + '</p>';
+  const top = codes.slice(0, 3);
+  $('#groups').innerHTML = top.length ? '<ul>' + top.map(k =>
+    '<li><b>' + HO.t('Grup ', 'Group ') + k + '</b> (≈ ' + Math.round(byCode[k] / Math.max(1, S.sel.length)) + HO.t(' öğrenci', ' students') + '): ' +
+    HO.esc(HO.L(misc(k))) + ' <span class="muted">— ' + HO.esc(misc(k).ex) + '</span></li>').join('') +
+    '<li><b>' + HO.t('Akran öğretmen grubu', 'Peer tutor group') + '</b>: ' + HO.t('Tüm soruları doğru yapanlar; karma aşamada diğer gruplara dağılır.', 'Students with all answers correct; they join the other groups in the mixed phase.') + '</li></ul>'
+    : '<p class="muted">' + HO.t('Grup gerekmiyor: hedeflenen yanılgı görülmedi.', 'No groups needed: no targeted misconception observed.') + '</p>';
+}
+function show(mode) {
+  S.mode = mode; save();
+  $('#setup').hidden = mode !== 'setup'; $('#run').hidden = mode !== 'run'; $('#report').hidden = mode !== 'report';
+  if (mode === 'setup') renderSetup(); if (mode === 'run') renderRun(); if (mode === 'report') renderReport();
+}
+$('#start').addEventListener('click', () => { S.i = 0; S.counts = {}; show('run'); });
+$('#restart').addEventListener('click', () => show('setup'));
+$('#prev').addEventListener('click', () => { S.i--; save(); renderRun(); });
+$('#next').addEventListener('click', () => { if (S.i < S.sel.length - 1) { S.i++; save(); renderRun(); } else show('report'); });
+$('#csv').addEventListener('click', () => {
+  const rows = [['soru', 'secenek', 'cevap', 'yanilgi_kodu', 'sayi']];
+  S.sel.forEach(id => { const q = QUESTIONS.find(x => x.id === id); const c = S.counts[id] || [0, 0, 0, 0];
+    q.opts.forEach((o, k) => rows.push([q.q, LET[k], o[0], o[1] || 'DOGRU', c[k]])); });
+  HO.download('cikis-bileti.csv', '﻿' + rows.map(r => r.map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv;charset=utf-8');
+});
+document.addEventListener('langchange', () => show(S.mode));
+if (S.mode === 'run' && !cur()) S.mode = 'setup';
+HO.applyStatic(); show(S.mode);
+</script>
+</body>
+</html>

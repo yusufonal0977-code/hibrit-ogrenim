@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kavram Yanılgısı Atlası</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:14px; margin-bottom:8px; }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .kblock { padding:10px 0; border-bottom:1px solid var(--line); }
+  .kblock:last-child { border-bottom:0; }
+  .mini { display:grid; grid-template-columns: 130px 1fr 48px; gap:8px; align-items:center; font-size:13px; margin:3px 0; }
+  .entry { display:grid; gap:8px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .entry label { font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Misconception Atlas">Kavram Yanılgısı Atlası</h1>
+  <p class="lead" data-en="Station 4. Each school applies the same 5-question test (Appendix of the report), counts how many students made each misconception and enters the result here. Results from different schools and countries are compared side by side.">Etkinlik 4. Her okul aynı 5 soruluk testi (raporun ekinde) uygular, her kavram yanılgısını kaç öğrencinin yaptığını sayar ve sonucu buraya girer. Farklı okul ve ülkelerin sonuçları yan yana karşılaştırılır.</p>
+
+  <details class="card noprint">
+    <summary><b data-en="Add a school's results">Bir okulun sonuçlarını ekle</b></summary>
+    <div class="entry" style="margin-top:12px">
+      <label><span data-en="Country">Ülke</span><input type="text" id="country" placeholder="Türkiye"></label>
+      <label><span data-en="School code">Okul kodu</span><input type="text" id="school" placeholder="TR-01"></label>
+      <label><span data-en="Number of students">Öğrenci sayısı</span><input type="number" id="n" min="1"></label>
+    </div>
+    <p class="small muted" style="margin:12px 0 6px" data-en="Number of students who made each misconception:">Her yanılgıyı yapan öğrenci sayısı:</p>
+    <div class="entry" id="kin"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="addrow" data-en="Add">Ekle</button><span id="err" class="small" style="color:var(--bad)"></span></div>
+  </details>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0" data-en="Comparison by country">Ülkelere göre karşılaştırma</h3>
+      <label class="small row noprint" style="gap:6px"><input type="checkbox" id="demo"> <span data-en="Show example data (fictional)">Örnek veriyi göster (kurgusal)</span></label>
+    </div>
+    <p id="demonote" class="small" hidden><span class="pill-warn" data-en="EXAMPLE">ÖRNEK</span> <span data-en="These numbers are invented to show how the page works. They are not research results.">Bu sayılar sayfanın nasıl çalıştığını göstermek için uydurulmuştur, araştırma sonucu değildir.</span></p>
+    <div class="legend" id="legend"></div>
+    <div id="chart"></div>
+  </div>
+
+  <div class="card table-wrap">
+    <h3 data-en="Entries">Girişler</h3>
+    <table><thead><tr><th data-en="Country">Ülke</th><th data-en="School">Okul</th><th data-en="Students">Öğrenci</th><th data-en="Source">Kaynak</th><th></th></tr></thead><tbody id="list"></tbody></table>
+  </div>
+
+  <div class="row noprint">
+    <button class="btn" id="export" data-en="Download JSON">JSON indir</button>
+    <label class="btn ghost" style="cursor:pointer"><span data-en="Load JSON">JSON yükle</span><input type="file" id="import" accept=".json,application/json" hidden></label>
+    <button class="btn ghost" onclick="print()" data-en="Print">Yazdır</button>
+  </div>
+  <p class="small muted" data-en="Sharing between schools: each school downloads its JSON file and sends it to the coordinator. The coordinator adds the shared files to atlas/veri.json in the GitHub repository so they appear here for everyone.">Okullar arası paylaşım: her okul JSON dosyasını indirip koordinatöre gönderir. Koordinatör ortak verileri GitHub deposundaki atlas/veri.json dosyasına ekler, böylece sonuçlar herkes için burada görünür.</p>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/data.js"></script>
+<script>
+HO.header('../');
+const $ = s => document.querySelector(s);
+const COLORS = ['#2f6fa8', '#c0504d', '#4f9a62', '#d08a1c', '#7b5ea7', '#2a9d8f'];
+const DEMO = [
+  { country: 'Ülke A', school: 'A-01', n: 60, k: { K1: 22, K2: 31, K3: 9, K4: 14, K5: 18, K6: 7, K7: 11, K8: 5 } },
+  { country: 'Ülke B', school: 'B-01', n: 48, k: { K1: 15, K2: 29, K3: 4, K4: 6, K5: 21, K6: 3, K7: 8, K8: 2 } },
+  { country: 'Ülke C', school: 'C-01', n: 52, k: { K1: 19, K2: 20, K3: 12, K4: 17, K5: 10, K6: 9, K7: 6, K8: 7 } }
+];
+let local = HO.store.get('ho-atlas', []);
+let remote = [];
+let demo = false;
+
+$('#kin').innerHTML = MISC.map(m => '<label title="' + HO.esc(m.tr) + '">' + m.code + '<input type="number" min="0" data-k="' + m.code + '"></label>').join('');
+
+function all() { return (demo ? DEMO.map(d => ({ ...d, src: 'demo' })) : []).concat(remote.map(d => ({ ...d, src: 'repo' })), local.map(d => ({ ...d, src: 'local' }))); }
+function byCountry(rows) {
+  const g = {};
+  rows.forEach(r => {
+    const c = g[r.country] || (g[r.country] = { n: 0, k: {} });
+    c.n += +r.n; MISC.forEach(m => { c.k[m.code] = (c.k[m.code] || 0) + (+r.k[m.code] || 0); });
+  });
+  return g;
+}
+function render() {
+  const rows = all(); const g = byCountry(rows); const names = Object.keys(g);
+  $('#demonote').hidden = !demo;
+  $('#legend').innerHTML = names.map((c, i) => '<span><i style="background:' + COLORS[i % COLORS.length] + '"></i>' + HO.esc(c) + ' (n=' + g[c].n + ')</span>').join('');
+  $('#chart').innerHTML = names.length ? MISC.map(m =>
+    '<div class="kblock"><div class="small"><b>' + m.code + '</b> ' + HO.esc(HO.L(m)) + '</div>' +
+    names.map((c, i) => { const p = g[c].n ? Math.round(100 * g[c].k[m.code] / g[c].n) : 0;
+      return '<div class="mini"><span class="muted">' + HO.esc(c) + '</span><div class="bar" style="width:' + p + '%;background:' + COLORS[i % COLORS.length] + '"></div><span>' + p + '%</span></div>'; }).join('') + '</div>').join('')
+    : '<p class="muted">' + HO.t('Henüz veri yok. Bir okulun sonuçlarını ekleyin ya da örnek veriyi açın.', 'No data yet. Add a school\'s results or turn on the example data.') + '</p>';
+  const srcName = s => ({ demo: HO.t('Örnek', 'Example'), repo: HO.t('Ortak veri', 'Shared data'), local: HO.t('Bu tarayıcı', 'This browser') }[s]);
+  $('#list').innerHTML = rows.map(r => '<tr><td>' + HO.esc(r.country) + '</td><td>' + HO.esc(r.school) + '</td><td>' + r.n + '</td><td>' + srcName(r.src) + '</td><td>' +
+    (r.src === 'local' ? '<button class="btn ghost noprint" data-del="' + HO.esc(r.school) + '">×</button>' : '') + '</td></tr>').join('');
+  $('#list').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    local = local.filter(r => r.school !== b.dataset.del); HO.store.set('ho-atlas', local); render(); }));
+}
+$('#addrow').addEventListener('click', () => {
+  const country = $('#country').value.trim(), school = $('#school').value.trim(), n = +$('#n').value;
+  const k = {}; let bad = false;
+  document.querySelectorAll('#kin input').forEach(i => { k[i.dataset.k] = +i.value || 0; if (k[i.dataset.k] > n) bad = true; });
+  if (!country || !school || !n) { $('#err').textContent = HO.t('Ülke, okul kodu ve öğrenci sayısı gerekli.', 'Country, school code and number of students are required.'); return; }
+  if (bad) { $('#err').textContent = HO.t('Bir yanılgının sayısı öğrenci sayısını aşamaz.', 'A count cannot exceed the number of students.'); return; }
+  $('#err').textContent = '';
+  local = local.filter(r => r.school !== school).concat([{ country, school, n, k }]);
+  HO.store.set('ho-atlas', local); render();
+});
+$('#demo').addEventListener('change', e => { demo = e.target.checked; render(); });
+$('#export').addEventListener('click', () => HO.download('atlas-' + (local[0] ? local[0].school : 'veri') + '.json', JSON.stringify(local, null, 2), 'application/json'));
+$('#import').addEventListener('change', async e => {
+  try {
+    const data = JSON.parse(await e.target.files[0].text());
+    const ok = Array.isArray(data) ? data.filter(r => r && r.country && r.school && r.n && r.k) : [];
+    ok.forEach(r => { local = local.filter(x => x.school !== r.school).concat([{ country: String(r.country), school: String(r.school), n: +r.n, k: r.k }]); });
+    HO.store.set('ho-atlas', local); render();
+  } catch (err) { alert(HO.t('Dosya okunamadı.', 'Could not read the file.')); }
+  e.target.value = '';
+});
+fetch('veri.json').then(r => r.ok ? r.json() : []).then(d => { remote = Array.isArray(d) ? d : []; render(); }).catch(() => {});
+document.addEventListener('langchange', render);
+HO.applyStatic(); render();
+</script>
+</body>
+</html>
