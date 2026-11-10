@@ -24,3 +24,11 @@ window.QUESTIONS = [
   { id: 9, q: '2x + 3 = ?  (sadeleştir / simplify)', opts: [['5x', 'K4'], ['Sadeleşmez / cannot be simplified', null], ['5', 'K4'], ['6x', 'K4']] },
   { id: 10, q: '−2(x − 4) = ?', opts: [['−2x − 8', 'K1'], ['−2x + 8', null], ['−2x − 4', 'K1'], ['2x − 8', 'K7']] }
 ];
+
+// Ek B hata kartlarının cevap anahtarı (Görev 1 ve 3).
+window.ERROR_KEY = [
+  { card: 1, step: 1, code: 'K1' }, { card: 2, step: 1, code: 'K2' }, { card: 3, step: 1, code: 'K3' },
+  { card: 4, step: 1, code: 'K8' }, { card: 5, step: 2, code: 'K4' }, { card: 6, step: 1, code: 'K5' },
+  { card: 7, step: 2, code: 'K6' }, { card: 8, step: 1, code: 'K1' }, { card: 9, step: 2, code: 'K7' },
+  { card: 10, step: 2, code: 'K3' }
+];

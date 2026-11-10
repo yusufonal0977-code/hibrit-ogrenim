@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajans Puan Tablosu</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .team { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; }
+  .rank { font-size: 1.4rem; font-weight: 800; color: var(--muted); text-align: center; }
+  .tname { font-weight: 700; font-size: 1.15rem; }
+  .total { font-size: 2rem; font-weight: 800; color: var(--accent); min-width: 2.5em; text-align: right; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+  .stamps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .ctrl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .ctrl button { padding: 5px 10px; font-size: 14px; }
+  .ceremony .card { text-align: center; }
+  .ceremony .place { font-size: 1rem; color: var(--muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .ceremony .who { font-size: clamp(1.6rem, 6vw, 2.8rem); font-weight: 800; color: var(--accent); }
+  .hidden-name { filter: blur(10px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-en="Agency Scoreboard">Ajans Puan Tablosu</h1>
+  <p class="lead" data-en="Lost Logic Agency. Add the teams, give points after each station, stamp the passports and award badges. Project it on the board as a live scoreboard. Points are kept per team only.">Kayıp Mantık Ajansı. Takımları ekle, her görevden sonra puan ver, pasaportları damgala ve rozet dağıt. Tahtaya yansıtıp canlı skor tablosu olarak kullan. Puanlar yalnızca takım bazında tutulur.</p>
+
+  <details class="card noprint" id="setup">
+    <summary><b data-en="Add team">Takım ekle</b></summary>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="tname" placeholder="Takım adı / Team name" maxlength="30">
+      <input type="color" id="tcolor" value="#2f6fa8" aria-label="Renk">
+      <button class="btn" id="addTeam" data-en="Add">Ekle</button>
+    </div>
+  </details>
+
+  <div class="row noprint" style="margin-bottom:14px">
+    <button class="btn ghost" id="toCeremony" data-en="Award ceremony">Ödül töreni</button>
+    <button class="btn ghost" id="undo" data-en="Undo last action">Son işlemi geri al</button>
+    <button class="btn ghost" id="csv" data-en="Download CSV">CSV indir</button>
+    <button class="btn ghost" id="reset" data-en="New game">Yeni oyun</button>
+  </div>
+
+  <section id="board"></section>
+  <section id="ceremony" class="ceremony" hidden></section>
+
+  <h2 data-en="Badges">Rozetler</h2>
+  <div class="card table-wrap"><table><tbody id="badgeList"></tbody></table></div>
+</div>
+<script src="../assets/common.js"></script>
+<script src="../assets/game.js"></script>
+<script>
+HO.header('../');
+const $ = s => document.querySelector(s);
+let G = HO.store.get('ho-score', { teams: [], log: [] });
+const save = () => HO.store.set('ho-score', G);
+const total = t => t.pts.reduce((a, b) => a + b, 0) + t.bonus;
+function act(fn, label) { G.log.push(JSON.stringify(G.teams)); if (G.log.length > 30) G.log.shift(); fn(); save(); render(); }
+
+function render() {
+  const sorted = G.teams.map((t, i) => [t, i]).sort((a, b) => total(b[0]) - total(a[0]));
+  const max = Math.max(1, ...G.teams.map(total));
+  $('#board').innerHTML = G.teams.length ? sorted.map(([t, i], r) =>
+    '<div class="card"><div class="team"><div class="rank">' + (r + 1) + '</div><div>' +
+    '<div class="tname"><span class="swatch" style="background:' + HO.esc(t.color) + '"></span>' + HO.esc(t.name) + '</div>' +
+    '<div class="bar" style="width:' + Math.round(100 * total(t) / max) + '%;background:' + HO.esc(t.color) + ';margin-top:6px"></div>' +
+    '<div class="stamps">' + STATIONS.map((s, k) => '<button class="stamp' + (t.stamps[k] ? ' on' : '') + '" data-stamp="' + i + ',' + k + '" title="' + HO.esc(HO.L(s)) + '">' + (k + 1) + '</button>').join('') + '</div>' +
+    (t.badges.length ? '<div style="margin-top:6px">' + t.badges.map(id => { const b = BADGES_DATA.find(x => x.id === id); return '<span class="badge">' + HO.esc(HO.L(b)) + '</span>'; }).join('') + '</div>' : '') +
+    '<div class="ctrl noprint">' +
+      '<select data-st="' + i + '">' + STATIONS.map((s, k) => '<option value="' + k + '">' + HO.t('Görev ', 'Station ') + (k + 1) + ' · ' + HO.esc(HO.L(s)) + '</option>').join('') + '</select>' +
+      [1, 2, 3, 5].map(n => '<button class="btn" data-add="' + i + ',' + n + '">+' + n + '</button>').join('') +
+      '<button class="btn ghost" data-add="' + i + ',-1">−1</button>' +
+      '<button class="btn ghost" data-help="' + i + '">' + HO.t('Yardım jetonu +2', 'Help token +2') + '</button>' +
+      '<select data-badge="' + i + '"><option value="">' + HO.t('Rozet ver…', 'Give badge…') + '</option>' + BADGES_DATA.map(b => '<option value="' + b.id + '">' + HO.esc(HO.L(b)) + '</option>').join('') + '</select>' +
+    '</div></div><div class="total">' + total(t) + '</div></div></div>').join('')
+    : '<div class="card muted">' + HO.t('Henüz takım yok. Yukarıdan takım ekleyin.', 'No teams yet. Add a team above.') + '</div>';
+
+  $('#board').querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+    const [i, n] = b.dataset.add.split(',').map(Number); const k = +$('[data-st="' + i + '"]').value;
+    act(() => { const t = G.teams[i]; t.pts[k] = Math.max(0, t.pts[k] + n); if (n > 0) t.stamps[k] = true; });
+  }));
+  $('#board').querySelectorAll('[data-help]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.help; act(() => { G.teams[i].bonus += 2; G.teams[i].help = (G.teams[i].help || 0) + 1; });
+  }));
+  $('#board').querySelectorAll('[data-stamp]').forEach(b => b.addEventListener('click', () => {
+    const [i, k] = b.dataset.stamp.split(',').map(Number); act(() => { G.teams[i].stamps[k] = !G.teams[i].stamps[k]; });
+  }));
+  $('#board').querySelectorAll('[data-badge]').forEach(s => s.addEventListener('change', () => {
+    const i = +s.dataset.badge; const id = s.value; if (!id) return;
+    act(() => { const t = G.teams[i]; t.badges = t.badges.includes(id) ? t.badges.filter(x => x !== id) : t.badges.concat(id); });
+  }));
+  $('#badgeList').innerHTML = BADGES_DATA.map(b => '<tr><td><span class="badge">' + HO.esc(HO.L(b)) + '</span></td><td class="small muted">' + HO.esc(HO.t(b.howTr, b.howEn)) + '</td></tr>').join('');
+}
+
+// Ödül töreni: sıralama sondan başa, tıkladıkça açılır.
+let reveal = 0;
+function ceremony() {
+  const sorted = G.teams.slice().sort((a, b) => total(b) - total(a));
+  const order = sorted.slice().reverse();
+  $('#ceremony').innerHTML = order.map((t, j) => {
+    const place = sorted.length - j; const shown = j < reveal;
+    return '<div class="card"><div class="place">' + place + HO.t('. sıra', '. place') + '</div>' +
+      '<div class="who ' + (shown ? '' : 'hidden-name') + '">' + (shown ? HO.esc(t.name) : '????????') + '</div>' +
+      (shown ? '<div class="muted">' + total(t) + HO.t(' puan', ' points') + ' · ' + t.stamps.filter(Boolean).length + HO.t(' damga', ' stamps') + '</div>' +
+        '<div>' + t.badges.map(id => '<span class="badge">' + HO.esc(HO.L(BADGES_DATA.find(x => x.id === id))) + '</span>').join('') + '</div>' : '') + '</div>';
+  }).join('') + '<div class="row noprint" style="justify-content:center">' +
+    (reveal < order.length ? '<button class="btn" id="next">' + HO.t('Sıradakini aç', 'Reveal next') + '</button>' : '') +
+    '<button class="btn ghost" id="back">' + HO.t('Puan tablosuna dön', 'Back to scoreboard') + '</button></div>';
+  const nx = $('#next'); if (nx) nx.addEventListener('click', () => { reveal++; ceremony(); if (reveal === order.length) HO.confetti(); });
+  $('#back').addEventListener('click', () => { $('#ceremony').hidden = true; $('#board').hidden = false; render(); });
+}
+$('#toCeremony').addEventListener('click', () => {
+  if (!G.teams.length) return; reveal = 0; $('#board').hidden = true; $('#ceremony').hidden = false; ceremony(); scrollTo(0, 0);
+});
+$('#addTeam').addEventListener('click', () => {
+  const name = $('#tname').value.trim(); if (!name) return;
+  act(() => G.teams.push({ name, color: $('#tcolor').value, pts: STATIONS.map(() => 0), stamps: STATIONS.map(() => false), badges: [], bonus: 0, help: 0 }));
+  $('#tname').value = '';
+  const palette = ['#2f6fa8', '#c0504d', '#4f9a62', '#d08a1c', '#7b5ea7', '#2a9d8f', '#b5507a'];
+  $('#tcolor').value = palette[G.teams.length % palette.length];
+});
+$('#tname').addEventListener('keydown', e => { if (e.key === 'Enter') $('#addTeam').click(); });
+$('#undo').addEventListener('click', () => { if (!G.log.length) return; G.teams = JSON.parse(G.log.pop()); save(); render(); });
+$('#reset').addEventListener('click', () => { if (confirm(HO.t('Tüm takımlar ve puanlar silinsin mi?', 'Delete all teams and points?'))) { G = { teams: [], log: [] }; save(); render(); } });
+$('#csv').addEventListener('click', () => {
+  const head = ['takim'].concat(STATIONS.map((s, k) => 'gorev' + (k + 1)), ['yardim_bonusu', 'toplam', 'damga', 'rozetler']);
+  const rows = G.teams.map(t => [t.name].concat(t.pts, [t.bonus, total(t), t.stamps.filter(Boolean).length, t.badges.join(' ')]));
+  HO.download('ajans-puan-tablosu.csv', '﻿' + [head].concat(rows).map(r => r.map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv;charset=utf-8');
+});
+document.addEventListener('langchange', () => ($('#ceremony').hidden ? render() : ceremony()));
+HO.applyStatic(); render();
+</script>
+</body>
+</html>

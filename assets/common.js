@@ -43,3 +43,25 @@
     header, applyStatic, download
   };
 })();
+
+// Konfeti ve geri sayım yardımcıları.
+window.HO.confetti = function () {
+  const box = document.createElement('div'); box.className = 'confetti';
+  const colors = ['#2f6fa8', '#c0504d', '#4f9a62', '#d08a1c', '#7b5ea7'];
+  for (let i = 0; i < 90; i++) {
+    const p = document.createElement('i');
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = colors[i % colors.length];
+    p.style.animationDuration = 1.6 + Math.random() * 1.8 + 's';
+    p.style.animationDelay = Math.random() * 0.5 + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 4200);
+};
+window.HO.countdown = function (el, seconds, onEnd) {
+  let left = seconds; clearInterval(el._t);
+  const draw = () => { el.textContent = left; el.classList.toggle('low', left <= 5 && left > 0); };
+  draw();
+  el._t = setInterval(() => { left--; draw(); if (left <= 0) { clearInterval(el._t); el.classList.remove('low'); if (onEnd) onEnd(); } }, 1000);
+  return () => clearInterval(el._t);
+};

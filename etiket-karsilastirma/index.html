@@ -3,13 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>İnsan mı, Makine mi?</title>
+<title>Makineye Karşı</title>
 <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="wrap">
-  <h1 data-en="Human or Machine?">İnsan mı, Makine mi?</h1>
-  <p class="lead" data-en="Station 3. For each error card, enter the step where the error starts and the misconception code, first as decided by the students, then as given by the AI tool. The page computes how often they agree.">Etkinlik 3. Her hata kartı için hatanın başladığı adımı ve kavram yanılgısı kodunu gir: önce öğrencilerin kararını, sonra YZ aracının verdiği cevabı. Sayfa, ikisinin ne sıklıkla uyuştuğunu hesaplar.</p>
+  <h1 data-en="Versus the Machine: Class vs AI">Makineye Karşı: Sınıf vs YZ</h1>
+  <p class="lead" data-en="Station 3. A quiz match: for each error card, the class locks in its answer (step and code), then the AI's answer is revealed. Each correct step and each correct code is worth 1 point, checked against the answer key of the printed error cards.">Görev 3. Bir bilgi yarışması maçı: her hata kartında önce sınıf cevabını (adım ve kod) kilitler, sonra YZ'nin cevabı açıklanır. Basılı hata kartlarının cevap anahtarına göre doğru adım ve doğru kod birer puan getirir.</p>
+
+  <div class="card">
+    <div class="scoreboard">
+      <div class="side"><div class="small muted" data-en="CLASS">SINIF</div><div class="pts" id="sClass">0</div></div>
+      <div class="vs">VS</div>
+      <div class="side ai"><div class="small muted" data-en="AI">YZ</div><div class="pts" id="sAI">0</div></div>
+    </div>
+    <p class="small muted" id="sNote" style="text-align:center;margin:10px 0 0"></p>
+  </div>
 
   <div class="card table-wrap">
     <table>
@@ -90,6 +99,17 @@ function renderResults() {
   const stepDone = R.filter(r => r.hs && r.as);
   const stepAgree = stepDone.filter(r => r.hs === r.as).length;
   const k = kappa(done.map(r => [r.hc, r.ac]));
+  let sc = 0, sa = 0, judged = 0;
+  R.forEach(r => { const key = ERROR_KEY.find(x => x.card === r.card); if (!key) return;
+    if (r.hs || r.hc || r.as || r.ac) judged++;
+    sc += (+r.hs === key.step) + (r.hc === key.code); sa += (+r.as === key.step) + (r.ac === key.code); });
+  const prevC = +$('#sClass').textContent, prevA = +$('#sAI').textContent;
+  $('#sClass').textContent = sc; $('#sAI').textContent = sa;
+  $('#sNote').textContent = !judged ? HO.t('Maç başlamadı. Kartları girdikçe skor güncellenir.', 'The match has not started. The score updates as you enter cards.')
+    : sc > sa ? HO.t('Sınıf önde! Makine zorlanıyor.', 'The class is ahead! The machine is struggling.')
+    : sc < sa ? HO.t('YZ önde. Rövanş kartı: YZ neden kazanıyor, açıklayabilir misiniz?', 'The AI is ahead. Rematch card: can you explain why the AI is winning?')
+    : HO.t('Berabere!', 'It\'s a tie!');
+  if (judged >= 10 && sc > sa && prevC <= prevA) HO.confetti();
   const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '–';
   $('#stats').innerHTML =
     '<div class="card"><div class="stat">' + pct(codeAgree, done.length) + '</div><div class="muted small">' + HO.t('Kod uyumu', 'Code agreement') + ' (' + codeAgree + '/' + done.length + ')</div></div>' +

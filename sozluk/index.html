@@ -14,8 +14,14 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 data-en="Debate Glossary">Münazara Sözlüğü</h1>
-  <p class="lead" data-en="Station 8. Prepared to be studied with foreign language teachers before the debate. Search the terms; print it and hand it to the teams.">Etkinlik 8. Münazaradan önce yabancı dil öğretmenleriyle birlikte çalışılmak üzere hazırlandı. Terimleri arayabilir, yazdırıp ekiplere dağıtabilirsin.</p>
+  <h1 data-en="Debate Glossary and Word Duel">Münazara Sözlüğü ve Kelime Düellosu</h1>
+  <p class="lead" data-en="Station 8, AI on Trial. Warm up with the foreign language teachers before the trial: play the Word Duel, then study the terms and courtroom phrases. Printable for the teams.">Görev 8, YZ Mahkemede. Duruşmadan önce yabancı dil öğretmenleriyle ısınma: önce Kelime Düellosu oynayın, sonra terimleri ve mahkeme ifadelerini çalışın. Yazdırıp takımlara dağıtabilirsin.</p>
+
+  <section class="card noprint" id="duel">
+    <h2 style="margin-top:0" data-en="Word Duel">Kelime Düellosu</h2>
+    <p class="small muted" data-en="Two teams take turns. Each turn shows a term; pick the right translation within 15 seconds. 10 rounds.">İki takım sırayla oynar. Her turda bir terim çıkar; doğru çeviriyi 15 saniye içinde seç. 10 tur.</p>
+    <div id="duelBody"></div>
+  </section>
 
   <div class="row noprint" style="margin-bottom:14px">
     <input type="text" id="q" placeholder="Ara / Search">
@@ -48,8 +54,50 @@ function render() {
   }).join('');
 }
 $('#q').addEventListener('input', render);
-document.addEventListener('langchange', render);
-HO.applyStatic(); render();
+
+// Kelime Düellosu
+let Q = null;
+const shuffle = a => a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(p => p[1]);
+function duelStart(dir) {
+  Q = { dir, round: 0, team: 0, score: [0, 0], order: shuffle(TERMS.map((_, i) => i)).slice(0, 10), answered: false };
+  duelRound();
+}
+function duelIdle() {
+  $('#duelBody').innerHTML = '<div class="row"><button class="btn" data-dir="tr">TR → EN</button><button class="btn ghost" data-dir="en">EN → TR</button></div>';
+  $('#duelBody').querySelectorAll('[data-dir]').forEach(b => b.addEventListener('click', () => duelStart(b.dataset.dir)));
+}
+function duelRound() {
+  if (Q.round >= Q.order.length) return duelEnd();
+  const t = TERMS[Q.order[Q.round]], ask = Q.dir === 'tr' ? t[0] : t[1], ans = Q.dir === 'tr' ? t[1] : t[0];
+  const wrong = shuffle(TERMS.filter(x => x !== t)).slice(0, 3).map(x => Q.dir === 'tr' ? x[1] : x[0]);
+  const opts = shuffle([ans].concat(wrong));
+  Q.answered = false;
+  $('#duelBody').innerHTML =
+    '<div class="row" style="justify-content:space-between"><span class="tag">' + HO.t('Tur ', 'Round ') + (Q.round + 1) + ' / ' + Q.order.length + ' · ' + HO.t('Sıra: Takım ', 'Turn: Team ') + (Q.team ? 'B' : 'A') + '</span>' +
+    '<span><b>A</b> ' + Q.score[0] + ' – ' + Q.score[1] + ' <b>B</b></span></div>' +
+    '<div class="row" style="justify-content:space-between;align-items:center"><p class="big" style="margin:12px 0">' + HO.esc(ask) + '</p><div class="timer" id="dt">15</div></div>' +
+    '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">' + opts.map(o => '<button class="btn ghost" data-o="' + HO.esc(o) + '" style="justify-content:flex-start;text-align:left">' + HO.esc(o) + '</button>').join('') + '</div>' +
+    '<p id="dfb" style="min-height:1.6em;margin:12px 0 0"></p>';
+  const stop = HO.countdown($('#dt'), 15, () => pick(null));
+  function pick(o) {
+    if (Q.answered) return; Q.answered = true; stop();
+    const ok = o === ans; if (ok) Q.score[Q.team]++;
+    $('#duelBody').querySelectorAll('[data-o]').forEach(b => { b.disabled = true; if (b.dataset.o === ans) { b.classList.remove('ghost'); } });
+    $('#dfb').innerHTML = (ok ? '<span class="pill-ok">' + HO.t('Doğru!', 'Correct!') + '</span>' : '<span class="pill-bad">' + (o === null ? HO.t('Süre doldu.', 'Time is up.') : HO.t('Yanlış.', 'Wrong.')) + '</span> ' + HO.t('Doğrusu: ', 'Answer: ') + '<b>' + HO.esc(ans) + '</b>') +
+      ' <button class="btn" id="dnext" style="margin-left:8px">' + HO.t('Sonraki', 'Next') + '</button>';
+    $('#dnext').addEventListener('click', () => { Q.round++; Q.team = 1 - Q.team; duelRound(); });
+  }
+  $('#duelBody').querySelectorAll('[data-o]').forEach(b => b.addEventListener('click', () => pick(b.dataset.o)));
+}
+function duelEnd() {
+  const [a, b] = Q.score;
+  $('#duelBody').innerHTML = '<div class="celebrate">' + (a === b ? HO.t('Berabere! ', 'Tie! ') : HO.t('Kazanan: Takım ', 'Winner: Team ') + (a > b ? 'A' : 'B') + '! ') + a + ' – ' + b + '</div>' +
+    '<div class="row" style="margin-top:12px"><button class="btn" id="again">' + HO.t('Tekrar oyna', 'Play again') + '</button></div>';
+  HO.confetti();
+  $('#again').addEventListener('click', duelIdle);
+}
+document.addEventListener('langchange', () => { render(); if (!Q || Q.round >= Q.order.length) duelIdle(); });
+HO.applyStatic(); render(); duelIdle();
 </script>
 </body>
 </html>

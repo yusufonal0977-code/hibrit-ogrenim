@@ -2,18 +2,21 @@
 
 YZ Destekli Hibrit Öğrenme Döngüsü projesinin etkinlik istasyonları için tarayıcıda çalışan araçlar.
 
-| Araç | Etkinlik | Klasör |
+Oyun kurgusu: **Kayıp Mantık Ajansı**. Öğrenciler dedektif takımlarıdır, her istasyon bir görevdir.
+
+| Araç | Görev | Klasör |
 |---|---|---|
-| Çıkış Bileti (başlangıç prototipi) | 9 | `cikis-bileti/` |
-| İnsan mı, Makine mi? | 3 | `etiket-karsilastirma/` |
-| Kavram Yanılgısı Atlası | 4 | `atlas/` |
-| Etik Pusula | 10 | `etik-pusula/` |
-| Münazara Sözlüğü | 8 | `sozluk/` |
+| Ajans Puan Tablosu (takımlar, damgalar, rozetler, ödül töreni) | tümü | `puan-tablosu/` |
+| Makineye Karşı: Sınıf vs YZ | 3 | `etiket-karsilastirma/` |
+| Dünya Turu: Kavram Yanılgısı Atlası ve "Hangi ülke?" | 4 | `atlas/` |
+| Kelime Düellosu ve Münazara Sözlüğü | 8 | `sozluk/` |
+| Çıkış Bileti (başlangıç prototipi, geri sayımlı) | 9 | `cikis-bileti/` |
+| Etik Çarkı | 10 | `etik-pusula/` |
 
 - Kurulum gerekmez: düz HTML, CSS ve JavaScript. GitHub Pages ile yayımlanır.
 - Hiçbir veri sunucuya gönderilmez; girişler yalnızca kullanıcının tarayıcısında (localStorage) saklanır. Öğrenci adı girilmemelidir.
 - Arayüz Türkçe ve İngilizce.
-- Ortak veriler: `assets/data.js` (Kavram Yanılgısı Listesi ve çıkış bileti soruları), `assets/cases.js` (etik vaka kartları), `assets/glossary.js` (sözlük).
+- Ortak veriler: `assets/data.js` (Kavram Yanılgısı Listesi ve çıkış bileti soruları), `assets/cases.js` (etik vaka kartları), `assets/glossary.js` (sözlük), `assets/game.js` (görevler ve rozetler).
 - Atlas'a okul sonuçları eklemek için `atlas/veri.json` dosyasına şu biçimde kayıt eklenir:
 
 ```json

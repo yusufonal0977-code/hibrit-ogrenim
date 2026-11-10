@@ -17,8 +17,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 data-en="Misconception Atlas">Kavram Yanılgısı Atlası</h1>
-  <p class="lead" data-en="Station 4. Each school applies the same 5-question test (Appendix of the report), counts how many students made each misconception and enters the result here. Results from different schools and countries are compared side by side.">Etkinlik 4. Her okul aynı 5 soruluk testi (raporun ekinde) uygular, her kavram yanılgısını kaç öğrencinin yaptığını sayar ve sonucu buraya girer. Farklı okul ve ülkelerin sonuçları yan yana karşılaştırılır.</p>
+  <h1 data-en="World Tour: Misconception Atlas">Dünya Turu: Kavram Yanılgısı Atlası</h1>
+  <p class="lead" data-en="Station 4. Each school applies the same 5-question test (Appendix of the report), counts how many students made each misconception and enters the result here. Results from different schools and countries are compared side by side.">Görev 4. Her okul aynı 5 soruluk testi (raporun ekinde) uygular, her kavram yanılgısını kaç öğrencinin yaptığını sayar ve sonucu buraya girer. Farklı okul ve ülkelerin sonuçları yan yana karşılaştırılır.</p>
 
   <details class="card noprint">
     <summary><b data-en="Add a school's results">Bir okulun sonuçlarını ekle</b></summary>
@@ -40,6 +40,12 @@
     <p id="demonote" class="small" hidden><span class="pill-warn" data-en="EXAMPLE">ÖRNEK</span> <span data-en="These numbers are invented to show how the page works. They are not research results.">Bu sayılar sayfanın nasıl çalıştığını göstermek için uydurulmuştur, araştırma sonucu değildir.</span></p>
     <div class="legend" id="legend"></div>
     <div id="chart"></div>
+  </div>
+
+  <div class="card noprint">
+    <h3 data-en="Guess the country!">Hangi ülke?</h3>
+    <p class="small muted" data-en="A country's profile is shown without its name. Teams guess which country it belongs to. Needs data from at least 2 countries (or turn on the example data).">Bir ülkenin profili adı gizlenerek gösterilir, takımlar hangi ülkeye ait olduğunu tahmin eder. En az 2 ülkenin verisi gerekir (ya da örnek veriyi açın).</p>
+    <div id="guess"><button class="btn" id="gstart" data-en="New round">Yeni tur</button></div>
   </div>
 
   <div class="card table-wrap">
@@ -106,6 +112,26 @@ $('#addrow').addEventListener('click', () => {
   HO.store.set('ho-atlas', local); render();
 });
 $('#demo').addEventListener('change', e => { demo = e.target.checked; render(); });
+
+// Hangi ülke? tahmin oyunu
+let gScore = 0, gRounds = 0;
+function guessRound() {
+  const g = byCountry(all()); const names = Object.keys(g);
+  if (names.length < 2) { $('#guess').innerHTML = '<p class="pill-warn">' + HO.t('En az 2 ülke gerekli.', 'At least 2 countries needed.') + '</p> <button class="btn" id="gstart">' + HO.t('Yeni tur', 'New round') + '</button>'; $('#gstart').addEventListener('click', guessRound); return; }
+  const target = names[Math.floor(Math.random() * names.length)]; const c = g[target];
+  const top = MISC.map(m => [m, c.n ? Math.round(100 * c.k[m.code] / c.n) : 0]).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  $('#guess').innerHTML = '<p class="small">' + HO.t('Gizli profil: en sık 4 yanılgı', 'Mystery profile: top 4 misconceptions') + '</p>' +
+    top.map(([m, p]) => '<div class="barrow"><span><b>' + m.code + '</b> ' + HO.esc(HO.L(m)) + '</span><div class="bar" style="width:' + p + '%"></div><span>' + p + '%</span></div>').join('') +
+    '<div class="row" style="margin-top:10px">' + names.map(nm => '<button class="btn ghost" data-g="' + HO.esc(nm) + '">' + HO.esc(nm) + '</button>').join('') + '</div><p id="gfb" style="min-height:1.5em"></p>';
+  $('#guess').querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => {
+    if ($('#guess').dataset.done === '1') return; $('#guess').dataset.done = '1';
+    const ok = b.dataset.g === target; gRounds++; if (ok) { gScore++; HO.confetti(); }
+    $('#gfb').innerHTML = (ok ? '<span class="pill-ok">' + HO.t('Doğru tahmin!', 'Correct!') + '</span>' : '<span class="pill-bad">' + HO.t('Olmadı. Cevap: ', 'Not quite. Answer: ') + HO.esc(target) + '</span>') +
+      ' <span class="muted small">' + HO.t('Skor: ', 'Score: ') + gScore + ' / ' + gRounds + '</span> <button class="btn" id="gnext">' + HO.t('Yeni tur', 'New round') + '</button>';
+    $('#gnext').addEventListener('click', () => { $('#guess').dataset.done = ''; guessRound(); });
+  }));
+}
+$('#gstart').addEventListener('click', guessRound);
 $('#export').addEventListener('click', () => HO.download('atlas-' + (local[0] ? local[0].school : 'veri') + '.json', JSON.stringify(local, null, 2), 'application/json'));
 $('#import').addEventListener('change', async e => {
   try {

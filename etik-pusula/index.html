@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Etik Pusula</title>
+<title>Etik Çarkı</title>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
   .cases { display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -14,16 +14,28 @@
   .compass div { background:var(--accent-soft); color:var(--accent); border-radius:8px; padding:10px; font-weight:600; text-align:center; }
   .counter input { width:100%; }
   .win { background: var(--ok-soft); border-radius: 8px; padding: 0 8px; }
+  .wheelbox { position: relative; display: inline-block; max-width: 100%; }
+  .wheelbox svg { max-width: 100%; height: auto; transition: transform 3.2s cubic-bezier(.17,.67,.21,1); }
+  .pointer { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid var(--text); z-index: 2; }
+  .cbar { display: grid; grid-template-columns: 110px 1fr auto auto auto; gap: 8px; align-items: center; padding: 6px 0; }
+  .cbar .n { min-width: 2em; text-align: center; font-weight: 700; font-size: 1.2rem; }
+  .cbar button { width: 40px; height: 40px; padding: 0; }
+  @media (prefers-reduced-motion: reduce) { .wheelbox svg { transition: none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 data-en="Ethics Compass">Etik Pusula</h1>
-  <p class="lead" data-en="Station 10. Pick a case and project it. Groups evaluate it with the four compass questions and propose a solution. Write the proposals below and count the raised hands.">Etkinlik 10. Bir vaka seç ve yansıt. Gruplar vakayı pusulanın dört sorusuyla değerlendirip bir çözüm önerir. Önerileri aşağıya yaz ve kalkan elleri say.</p>
+  <h1 data-en="Ethics Wheel">Etik Çarkı</h1>
+  <p class="lead" data-en="Station 10. Spin the wheel to pick a case. Everyone raises a green, yellow or red card within 10 seconds, then teams propose solutions and vote. The winning solution becomes an Agency Rule.">Görev 10. Çarkı çevir, rastgele bir vaka seçilsin. Herkes 10 saniye içinde yeşil, sarı ya da kırmızı kartını kaldırır. Sonra takımlar çözüm önerir ve oylar. Kazanan çözüm bir Ajans Kuralı olur.</p>
 
   <section id="pick">
+    <div class="card" style="text-align:center">
+      <div class="wheelbox"><div class="pointer"></div><svg id="wheel" viewBox="-110 -110 220 220" width="280" height="280" role="img" aria-label="Etik çarkı"></svg></div>
+      <div><button class="btn" id="spin" style="margin-top:12px" data-en="Spin the wheel">Çarkı çevir</button></div>
+    </div>
+    <h2 data-en="Or pick a case">Ya da bir vaka seç</h2>
     <div class="cases" id="cases"></div>
-    <h2 data-en="Decisions so far">Alınan kararlar</h2>
+    <h2 data-en="Agency Rules">Ajans Kuralları</h2>
     <div class="card" id="decisions"></div>
     <div class="row noprint">
       <button class="btn" id="csv" data-en="Download CSV">CSV indir</button>
@@ -37,6 +49,14 @@
       <div class="row" style="justify-content:space-between"><span class="tag" id="cno"></span><button class="btn ghost" id="back" data-en="All cases">Tüm vakalar</button></div>
       <p class="big" id="ctext"></p>
       <div class="compass" id="compass"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0" data-en="Colour card vote">Renkli kart oylaması</h3>
+        <div class="row"><div class="timer" id="vtimer" style="font-size:2rem">10</div><button class="btn" id="vgo" data-en="10 seconds">10 saniye</button></div>
+      </div>
+      <p class="small muted" data-en="Green: no problem. Yellow: careful. Red: unacceptable. Count the raised cards.">Yeşil: sorun yok. Sarı: dikkat. Kırmızı: kabul edilemez. Kalkan kartları say.</p>
+      <div id="colors"></div>
     </div>
     <div class="card">
       <h3 data-en="Group proposals and votes">Grup önerileri ve oylar</h3>
@@ -66,6 +86,40 @@ function renderPick() {
     HO.esc(D[k].props[D[k].winner].t) + ' <span class="muted small">(' + D[k].props[D[k].winner].v + HO.t(' oy', ' votes') + ')</span></li>').join('') + '</ol>'
     : '<p class="muted">' + HO.t('Henüz karar kaydedilmedi.', 'No decisions saved yet.') + '</p>';
 }
+// Çark
+const WCOL = ['#2f6fa8', '#c0504d', '#4f9a62', '#d08a1c', '#7b5ea7', '#2a9d8f'];
+let angle = 0, spinning = false;
+(function drawWheel() {
+  const n = CASES.length, r = 100; let svg = '';
+  for (let k = 0; k < n; k++) {
+    const a0 = (k / n) * 2 * Math.PI - Math.PI / 2, a1 = ((k + 1) / n) * 2 * Math.PI - Math.PI / 2;
+    svg += '<path d="M0 0 L' + (r * Math.cos(a0)).toFixed(2) + ' ' + (r * Math.sin(a0)).toFixed(2) + ' A' + r + ' ' + r + ' 0 0 1 ' + (r * Math.cos(a1)).toFixed(2) + ' ' + (r * Math.sin(a1)).toFixed(2) + ' Z" fill="' + WCOL[k % WCOL.length] + '" stroke="#fff" stroke-width="1.5"/>';
+    const am = (a0 + a1) / 2;
+    svg += '<text x="' + (68 * Math.cos(am)).toFixed(2) + '" y="' + (68 * Math.sin(am)).toFixed(2) + '" fill="#fff" font-size="14" font-weight="700" text-anchor="middle" dominant-baseline="middle">' + (k + 1) + '</text>';
+  }
+  svg += '<circle r="14" fill="#fff" stroke="#999"/>';
+  $('#wheel').innerHTML = svg;
+})();
+$('#spin').addEventListener('click', () => {
+  if (spinning) return; spinning = true;
+  const n = CASES.length, pick = Math.floor(Math.random() * n);
+  const seg = 360 / n, target = 360 - (pick * seg + seg / 2);
+  angle += 360 * 5 + ((target - (angle % 360)) + 360) % 360;
+  $('#wheel').style.transform = 'rotate(' + angle + 'deg)';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => { spinning = false; openCase(pick); }, reduced ? 200 : 3400);
+});
+
+function renderColors() {
+  const d = D[cur]; d.colors = d.colors || [0, 0, 0];
+  const names = [HO.t('Yeşil', 'Green'), HO.t('Sarı', 'Yellow'), HO.t('Kırmızı', 'Red')], cls = ['ok', '', 'bad'], col = ['var(--ok)', 'var(--warn)', 'var(--bad)'];
+  const tot = Math.max(1, d.colors.reduce((a, b) => a + b, 0));
+  $('#colors').innerHTML = d.colors.map((v, k) => '<div class="cbar"><span><b style="color:' + col[k] + '">' + names[k] + '</b></span><div class="bar" style="width:' + Math.round(100 * v / tot) + '%;background:' + col[k] + '"></div>' +
+    '<button class="btn ghost" data-c="' + k + '" data-d="-1">−</button><span class="n">' + v + '</span><button class="btn" data-c="' + k + '" data-d="1">+</button></div>').join('');
+  $('#colors').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { d.colors[+b.dataset.c] = Math.max(0, d.colors[+b.dataset.c] + (+b.dataset.d)); save(); renderColors(); }));
+}
+$('#vgo').addEventListener('click', () => HO.countdown($('#vtimer'), 10));
+
 function openCase(i) {
   cur = i; if (!D[i]) D[i] = { props: [{ t: '', v: 0 }, { t: '', v: 0 }], winner: null };
   $('#pick').hidden = true; $('#case').hidden = false; renderCase(); scrollTo(0, 0);
@@ -75,6 +129,7 @@ function renderCase() {
   $('#cno').textContent = HO.t('Vaka ', 'Case ') + (cur + 1) + ' / ' + CASES.length;
   $('#ctext').textContent = HO.L(CASES[cur]);
   $('#compass').innerHTML = COMPASS.map(c => '<div>' + HO.esc(HO.L(c)) + '</div>').join('');
+  renderColors();
   $('#props').innerHTML = d.props.map((p, k) =>
     '<div class="counter' + (max > 0 && p.v === max ? ' win' : '') + '"><input type="text" data-k="' + k + '" value="' + HO.esc(p.t) + '" placeholder="' + HO.t('Grup ', 'Group ') + (k + 1) + HO.t(' önerisi', ' proposal') + '">' +
     '<button class="btn ghost" data-k="' + k + '" data-d="-1">−</button><span class="n">' + p.v + '</span><button class="btn" data-k="' + k + '" data-d="1">+</button></div>').join('');
@@ -87,7 +142,7 @@ $('#addp').addEventListener('click', () => { D[cur].props.push({ t: '', v: 0 });
 $('#saveD').addEventListener('click', () => {
   const d = D[cur]; const valid = d.props.map((p, k) => [p, k]).filter(([p]) => p.t.trim());
   if (!valid.length) { alert(HO.t('En az bir öneri yazın.', 'Write at least one proposal.')); return; }
-  d.winner = valid.sort((a, b) => b[0].v - a[0].v)[0][1]; save(); back();
+  d.winner = valid.sort((a, b) => b[0].v - a[0].v)[0][1]; save(); back(); HO.confetti();
 });
 function back() { cur = null; $('#case').hidden = true; $('#pick').hidden = false; renderPick(); }
 $('#back').addEventListener('click', back);

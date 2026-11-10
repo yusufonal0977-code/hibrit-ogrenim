@@ -9,7 +9,7 @@
 <body>
 <div class="wrap">
   <h1 data-en="Exit Ticket">Çıkış Bileti</h1>
-  <p class="lead" data-en="Starter prototype for Station 9. Pick 2 questions, project them on the board, students hold up their A/B/C/D cards and you enter the counts. Every wrong option is linked to a misconception, so the result is the class error profile.">Etkinlik 9 için başlangıç prototipi. 2 soru seç ve tahtaya yansıt. Öğrenciler A/B/C/D kartlarını kaldırır, sen sayıları girersin. Her yanlış seçenek bir kavram yanılgısına bağlı olduğu için sonuç, sınıfın hata profilidir.</p>
+  <p class="lead" data-en="Starter prototype for Station 9. Pick 2 questions, project them on the board, students hold up their A/B/C/D cards and you enter the counts. Every wrong option is linked to a misconception, so the result is the class error profile.">Görev 9 için başlangıç prototipi. 2 soru seç ve tahtaya yansıt. Öğrenciler A/B/C/D kartlarını kaldırır, sen sayıları girersin. Her yanlış seçenek bir kavram yanılgısına bağlı olduğu için sonuç, sınıfın hata profilidir.</p>
 
   <section id="setup" class="card">
     <h2 style="margin-top:0" data-en="1. Choose questions">1. Soruları seç</h2>
@@ -25,7 +25,11 @@
       <span class="tag" id="qno"></span>
       <button class="btn ghost noprint" id="restart" data-en="Back to selection">Seçime dön</button>
     </div>
-    <p class="big" id="qtext"></p>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <p class="big" id="qtext" style="margin:10px 0"></p>
+      <div style="text-align:center"><div class="timer" id="timer">30</div><button class="btn ghost noprint" id="go" style="margin-top:6px" data-en="Start timer">Süreyi başlat</button></div>
+    </div>
+    <p class="small muted" id="cardsUp" hidden data-en="Time is up! Cards up: everyone raise your A/B/C/D card now.">Süre doldu! Kartlar havaya: herkes A/B/C/D kartını şimdi kaldırsın.</p>
     <div id="counters"></div>
     <div class="row" style="margin-top:14px">
       <button class="btn ghost" id="prev" data-en="Previous">Önceki</button>
@@ -34,6 +38,7 @@
   </section>
 
   <section id="report" hidden>
+    <div id="cele"></div>
     <h2 data-en="Class error profile">Sınıf hata profili</h2>
     <div class="stats" id="stats"></div>
     <div class="card" style="margin-top:14px">
@@ -87,6 +92,7 @@ function renderRun() {
   $('#counters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     const k = +b.dataset.k; c[k] = Math.max(0, c[k] + (+b.dataset.d)); save(); renderRun();
   }));
+  if (stopT) stopT(); $('#timer').textContent = 30; $('#timer').classList.remove('low'); $('#cardsUp').hidden = true;
   $('#prev').disabled = S.i === 0;
   $('#next').textContent = S.i === S.sel.length - 1 ? HO.t('Raporu göster', 'Show report') : HO.t('Sonraki', 'Next');
 }
@@ -97,6 +103,11 @@ function renderReport() {
     q.opts.forEach((o, k) => { total += c[k]; if (o[1] === null) correct += c[k]; else byCode[o[1]] = (byCode[o[1]] || 0) + c[k]; });
   });
   const pct = n => total ? Math.round(100 * n / total) : 0;
+  const ok = total && pct(correct) >= 70;
+  $('#cele').innerHTML = total ? '<div class="' + (ok ? 'celebrate' : 'card') + '">' + (ok
+    ? HO.t('Görev tamamlandı! Sınıf %' + pct(correct) + ' doğruyla kayıp mantığı buldu.', 'Mission complete! The class found the lost logic with ' + pct(correct) + '% correct.')
+    : HO.t('Ajans raporu: kayıp mantık hâlâ ortalıkta. Bir sonraki ders için hedef belli.', 'Agency report: the lost logic is still out there. Next lesson has a clear target.')) + '</div>' : '';
+  if (ok && !renderReport.done) { HO.confetti(); renderReport.done = true; }
   const perQ = S.sel.length ? Math.round(total / S.sel.length) : 0;
   $('#stats').innerHTML =
     '<div class="card"><div class="stat">' + pct(correct) + '%</div><div class="muted small">' + HO.t('Doğru cevap oranı', 'Correct answers') + '</div></div>' +
@@ -118,7 +129,9 @@ function show(mode) {
   $('#setup').hidden = mode !== 'setup'; $('#run').hidden = mode !== 'run'; $('#report').hidden = mode !== 'report';
   if (mode === 'setup') renderSetup(); if (mode === 'run') renderRun(); if (mode === 'report') renderReport();
 }
-$('#start').addEventListener('click', () => { S.i = 0; S.counts = {}; show('run'); });
+let stopT = null;
+$('#go').addEventListener('click', () => { $('#cardsUp').hidden = true; stopT = HO.countdown($('#timer'), 30, () => { $('#cardsUp').hidden = false; }); });
+$('#start').addEventListener('click', () => { S.i = 0; S.counts = {}; renderReport.done = false; show('run'); });
 $('#restart').addEventListener('click', () => show('setup'));
 $('#prev').addEventListener('click', () => { S.i--; save(); renderRun(); });
 $('#next').addEventListener('click', () => { if (S.i < S.sel.length - 1) { S.i++; save(); renderRun(); } else show('report'); });

@@ -103,3 +103,22 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
 }
 .grid > *, .stats > * { min-width: 0; }
 td code { white-space: normal; word-break: break-word; }
+
+/* --- Oyun öğeleri --- */
+.timer { font-variant-numeric: tabular-nums; font-size: clamp(2rem, 7vw, 3.4rem); font-weight: 800; color: var(--accent); line-height: 1; }
+.timer.low { color: var(--bad); animation: pulse .6s ease-in-out infinite alternate; }
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+.scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; text-align: center; }
+.scoreboard .side { background: var(--accent-soft); border-radius: var(--radius); padding: 16px 8px; }
+.scoreboard .side.ai { background: var(--bad-soft); }
+.scoreboard .pts { font-size: clamp(2.4rem, 9vw, 4rem); font-weight: 800; line-height: 1; }
+.scoreboard .vs { font-weight: 800; color: var(--muted); }
+.celebrate { text-align: center; padding: 22px 12px; border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); font-weight: 700; font-size: 1.3rem; animation: pop .5s ease-out; }
+@keyframes pop { 0% { transform: scale(.7); opacity: 0; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+.confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(105vh) rotate(720deg); } }
+.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); margin: 2px; }
+.stamp { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; border: 2px dashed var(--line); align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; background: transparent; padding: 0; }
+.stamp.on { border-style: solid; border-color: var(--ok); background: var(--ok); color: var(--card); }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } .timer.low, .celebrate { animation: none; } }
